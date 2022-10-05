@@ -177,16 +177,6 @@ def main_page():
                 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE', 'FLAG_PHONE'
                 ]]
 
-        # Pour les informations du client
-        examples_file = 'application_API.csv'
-        application, liste_id = chargement_data(examples_file)
-        application = application[~((application['EXT_SOURCE_1'].isnull()))]
-        application.drop(['Unnamed: 0'], axis=1, inplace=True)
-        X_infos_client = application[application['SK_ID_CURR'] == id_input]
-        st.write(X_infos_client)
-
-
-
         if withoutAPI:
             st.write('local model')
             result = prediction(X)
@@ -250,60 +240,60 @@ def page2():
                  notched=True)
     st.plotly_chart(fig)
 
-    # SHAP
-    X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
+    # # SHAP
+    # X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
 
-    if withoutAPI:
-        X = X1[[
-            'CODE_GENDER', 'AGE', 'CNT_CHILDREN', 'DEF_30_CNT_SOCIAL_CIRCLE',
-            'NAME_EDUCATION_TYPE_High education',
-            'NAME_EDUCATION_TYPE_Low education',
-            'NAME_EDUCATION_TYPE_Medium education',
-            'ORGANIZATION_TYPE_Construction', 'ORGANIZATION_TYPE_Electricity',
-            'ORGANIZATION_TYPE_Government/Industry', 'ORGANIZATION_TYPE_Medicine',
-            'ORGANIZATION_TYPE_Other/Construction/Agriculture',
-            'ORGANIZATION_TYPE_School', 'ORGANIZATION_TYPE_Services',
-            'ORGANIZATION_TYPE_Trade/Business',
-            'OCCUPATION_TYPE_Accountants/HR staff/Managers',
-            'OCCUPATION_TYPE_Core/Sales staff', 'OCCUPATION_TYPE_Laborers',
-            'OCCUPATION_TYPE_Medicine staff',
-            'OCCUPATION_TYPE_Private service staff', 'OCCUPATION_TYPE_Tech Staff',
-            'NAME_FAMILY_STATUS_Married', 'NAME_FAMILY_STATUS_Single',
-            'AMT_INCOME_TOTAL', 'INCOME_CREDIT_PERC', 'DAYS_EMPLOYED_PERC',
-            'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3'
-        ]]
-    else :
-        X = X1[[
-            'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
-            'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR',
-            'CNT_CHILDREN', 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE',
-            'FLAG_PHONE'
-        ]]
+    # if withoutAPI:
+    #     X = X1[[
+    #         'CODE_GENDER', 'AGE', 'CNT_CHILDREN', 'DEF_30_CNT_SOCIAL_CIRCLE',
+    #         'NAME_EDUCATION_TYPE_High education',
+    #         'NAME_EDUCATION_TYPE_Low education',
+    #         'NAME_EDUCATION_TYPE_Medium education',
+    #         'ORGANIZATION_TYPE_Construction', 'ORGANIZATION_TYPE_Electricity',
+    #         'ORGANIZATION_TYPE_Government/Industry', 'ORGANIZATION_TYPE_Medicine',
+    #         'ORGANIZATION_TYPE_Other/Construction/Agriculture',
+    #         'ORGANIZATION_TYPE_School', 'ORGANIZATION_TYPE_Services',
+    #         'ORGANIZATION_TYPE_Trade/Business',
+    #         'OCCUPATION_TYPE_Accountants/HR staff/Managers',
+    #         'OCCUPATION_TYPE_Core/Sales staff', 'OCCUPATION_TYPE_Laborers',
+    #         'OCCUPATION_TYPE_Medicine staff',
+    #         'OCCUPATION_TYPE_Private service staff', 'OCCUPATION_TYPE_Tech Staff',
+    #         'NAME_FAMILY_STATUS_Married', 'NAME_FAMILY_STATUS_Single',
+    #         'AMT_INCOME_TOTAL', 'INCOME_CREDIT_PERC', 'DAYS_EMPLOYED_PERC',
+    #         'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3'
+    #     ]]
+    # else :
+    #     X = X1[[
+    #         'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
+    #         'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR',
+    #         'CNT_CHILDREN', 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE',
+    #         'FLAG_PHONE'
+    #     ]]
 
-    # Variables globales
-    st.header('Variables globales du modèle {}:'.format(model_name))
-    feat_importances = pd.Series(model.feature_importances_,
-                                 index=X.columns).sort_values(ascending=False)
-    impPlot(feat_importances, model_name)
+    # # Variables globales
+    # st.header('Variables globales du modèle {}:'.format(model_name))
+    # feat_importances = pd.Series(model.feature_importances_,
+    #                              index=X.columns).sort_values(ascending=False)
+    # impPlot(feat_importances, model_name)
 
-    # Variables locales
-    st.header('Variables locales du modèle {} :'.format(model_name))
-    # compute SHAP values
-    explainer = shap.Explainer(model, X)
-    shap_values = explainer(X)
+    # # Variables locales
+    # st.header('Variables locales du modèle {} :'.format(model_name))
+    # # compute SHAP values
+    # explainer = shap.Explainer(model, X)
+    # shap_values = explainer(X)
 
-    #st_shap(shap.plots.waterfall(shap_values[0]), height=300)
-    #st_shap(shap.plots.beeswarm(shap_values), height=300)
+    # #st_shap(shap.plots.waterfall(shap_values[0]), height=300)
+    # #st_shap(shap.plots.beeswarm(shap_values), height=300)
 
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(X)
+    # explainer = shap.TreeExplainer(model)
+    # shap_values = explainer.shap_values(X)
 
-    st_shap(shap.summary_plot(shap_values, X, plot_type="bar"))
-    #st_shap(shap.summary_plot(shap_values, X))
+    # st_shap(shap.summary_plot(shap_values, X, plot_type="bar"))
+    # #st_shap(shap.summary_plot(shap_values, X))
 
-    st_shap(shap.force_plot(explainer.expected_value, shap_values, X),
-            height=200,
-            width=1000)
+    # st_shap(shap.force_plot(explainer.expected_value, shap_values, X),
+    #         height=200,
+    #         width=1000)
 
 
 def page3():
