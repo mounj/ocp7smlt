@@ -1,3 +1,4 @@
+from cProfile import label
 import streamlit as st
 from streamlit_shap import st_shap
 import shap
@@ -53,9 +54,9 @@ def request_prediction(model_uri, data):
     response = {}
     headers = {"Content-Type": "application/json"}
 
-    st.write('---data : {}'.format(type(data)))
+    # st.write('---data : {}'.format(type(data)))
 
-    data_json = {'data': data}
+    data_json = {'data': data.to_json()}
 
     response = requests.request(method='POST',
                                 headers=headers,
@@ -91,6 +92,7 @@ def impPlot(imp, name):
 def chargement_data(path):
     dataframe = pd.read_csv(path)
     liste_id = dataframe['SK_ID_CURR'].tolist()
+    liste_id.insert(0,0)
     return dataframe, liste_id
 
 
@@ -122,8 +124,7 @@ def main_page():
         id_input = st.session_state.client
         #st.write ('---debug client retour pagination main ' ,id_input)
 
-    id_input = st.selectbox(
-        'Choisissez le client que vous souhaitez visualiser', liste_id)
+    id_input = st.selectbox('Choisissez le client que vous souhaitez visualiser', liste_id, key='')
     st.session_state.client = id_input
 
     client_infos = dataframe[dataframe['SK_ID_CURR'] == id_input].drop(
@@ -132,29 +133,32 @@ def main_page():
 
     result = ""
 
-    X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
-    X = X1[[
-        'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
-        'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR', 'CNT_CHILDREN',
-        'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE', 'FLAG_PHONE'
-    ]]
-
-    # result = prediction(X)
-    result = request_prediction(LRSMOTE_URI, X)
-
-
-    if result == 1:
-        if int(X1['TARGET']) == 1:
-            pred = 'rejeté (True Positive)'
-        else:
-            pred = 'approuvé (False Positive)'
+    if id_input == 0:
+        st.write('Please select a client')
     else:
-        if int(X1['TARGET']) == 1:
-            pred = 'rejeté (False Negative)'
-        else:
-            pred = 'rejeté (True Negative)'
+        X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
+        X = X1[[
+            'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
+            'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR', 'CNT_CHILDREN',
+            'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE', 'FLAG_PHONE'
+        ]]
 
-    st.success('Votre crédit est {}'.format(pred))
+        # result = prediction(X)
+        result = int(json.loads(request_prediction(LRSMOTE_URI, X).content)["prediction"])
+
+
+        if result == 1:
+            if int(X1['TARGET']) == 1:
+                pred = 'rejeté (True Positive)'
+            else:
+                pred = 'approuvé (False Positive)'
+        else:
+            if int(X1['TARGET']) == 1:
+                pred = 'rejeté (False Negative)'
+            else:
+                pred = 'rejeté (True Negative)'
+
+        st.success('Votre crédit est {}'.format(pred))
 
 
 def page2():
