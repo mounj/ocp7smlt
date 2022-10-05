@@ -1,4 +1,5 @@
 from cProfile import label
+from operator import contains
 import streamlit as st
 from streamlit_shap import st_shap
 import shap
@@ -22,6 +23,13 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
 LRSMOTE_URI = 'https://ocp7gitapi.herokuapp.com/predict'
+withoutAPI = True
+offline_input = st.sidebar.radio('Connexion API:', ('Oui', 'Non'))
+if offline_input == 'Oui':
+    withoutAPI = False
+else :
+    withoutAPI = True
+# st.sidebar.write(offline_input)
 
 st.sidebar.title("Prêt à dépenser")
 #st.write ('---debug chargement image ')
@@ -98,14 +106,17 @@ def chargement_data(path):
 
 #st.write ('---debug lecture df1')
 # Pour alimenter le modèle avec les informations du client - les variables sont encodées !!!!!!
-examples_file = 'new_train_application.csv'
+if withoutAPI:
+    examples_file = 'application_API.csv'
+else :
+    examples_file = 'new_train_application.csv'
+
 dataframe, liste_id = chargement_data(examples_file)
 
 #st.write ('---debug les pages')
 
 
 def main_page():
-
     st.sidebar.markdown("# Calcul du risque")
     #st.write ('---Calcul du risque')
 
@@ -116,7 +127,6 @@ def main_page():
     )
 
     # Affichage 1ère fois
-
     if 'client' not in st.session_state:
         st.session_state.client = 0
     else:
@@ -124,7 +134,7 @@ def main_page():
         id_input = st.session_state.client
         #st.write ('---debug client retour pagination main ' ,id_input)
 
-    id_input = st.selectbox('Choisissez le client que vous souhaitez visualiser', liste_id, key='')
+    id_input = st.selectbox('Choisissez le client que vous souhaitez visualiser', liste_id)
     st.session_state.client = id_input
 
     client_infos = dataframe[dataframe['SK_ID_CURR'] == id_input].drop(
@@ -137,15 +147,52 @@ def main_page():
         st.write('Please select a client')
     else:
         X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
-        X = X1[[
-            'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
-            'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR', 'CNT_CHILDREN',
-            'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE', 'FLAG_PHONE'
-        ]]
+        if withoutAPI:
+            X = X1[[
+                'CODE_GENDER', 'AGE', 'CNT_CHILDREN',
+                'DEF_30_CNT_SOCIAL_CIRCLE',
+                'NAME_EDUCATION_TYPE_High education',
+                'NAME_EDUCATION_TYPE_Low education',
+                'NAME_EDUCATION_TYPE_Medium education',
+                'ORGANIZATION_TYPE_Construction',
+                'ORGANIZATION_TYPE_Electricity',
+                'ORGANIZATION_TYPE_Government/Industry',
+                'ORGANIZATION_TYPE_Medicine',
+                'ORGANIZATION_TYPE_Other/Construction/Agriculture',
+                'ORGANIZATION_TYPE_School', 'ORGANIZATION_TYPE_Services',
+                'ORGANIZATION_TYPE_Trade/Business',
+                'OCCUPATION_TYPE_Accountants/HR staff/Managers',
+                'OCCUPATION_TYPE_Core/Sales staff', 'OCCUPATION_TYPE_Laborers',
+                'OCCUPATION_TYPE_Medicine staff',
+                'OCCUPATION_TYPE_Private service staff',
+                'OCCUPATION_TYPE_Tech Staff', 'NAME_FAMILY_STATUS_Married',
+                'NAME_FAMILY_STATUS_Single', 'AMT_INCOME_TOTAL',
+                'INCOME_CREDIT_PERC', 'DAYS_EMPLOYED_PERC', 'EXT_SOURCE_1',
+                'EXT_SOURCE_2', 'EXT_SOURCE_3'
+            ]]
+        else :
+            X = X1[[
+                'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
+                'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR', 'CNT_CHILDREN',
+                'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE', 'FLAG_PHONE'
+                ]]
 
-        # result = prediction(X)
-        result = int(json.loads(request_prediction(LRSMOTE_URI, X).content)["prediction"])
+        # Pour les informations du client
+        examples_file = 'application_API.csv'
+        application, liste_id = chargement_data(examples_file)
+        application = application[~((application['EXT_SOURCE_1'].isnull()))]
+        application.drop(['Unnamed: 0'], axis=1, inplace=True)
+        X_infos_client = application[application['SK_ID_CURR'] == id_input]
+        st.write(X_infos_client)
 
+
+
+        if withoutAPI:
+            st.write('local model')
+            result = prediction(X)
+        else:
+            st.write('API model')
+            result = int(json.loads(request_prediction(LRSMOTE_URI, X).content)["prediction"])
 
         if result == 1:
             if int(X1['TARGET']) == 1:
@@ -156,9 +203,12 @@ def main_page():
             if int(X1['TARGET']) == 1:
                 pred = 'rejeté (False Negative)'
             else:
-                pred = 'rejeté (True Negative)'
+                pred = 'approuvé (True Negative)'
 
-        st.success('Votre crédit est {}'.format(pred))
+        if "approuvé" in pred:
+            st.success('Votre crédit est {}'.format(pred))#, icon="✅")
+        else:
+            st.error('votre crédit est {}'.format(pred)) #, icon="🚨")
 
 
 def page2():
@@ -178,23 +228,23 @@ def page2():
     st.header("Informations du client")
     examples_file = 'application.csv'
     application, liste_id = chargement_data(examples_file)
-    application.drop(['Unnamed: 0'], axis=1, inplace=True)
+    # application.drop(['Unnamed: 0'], axis=1, inplace=True)
     X_infos_client = application[application['SK_ID_CURR'] == id_input]
     st.write(X_infos_client)
 
     # scatter plot
 
-    st.header("OBS_30_CNT_SOCIAL_CIRCLE / EXT_SOURCE_3 / target")
+    st.header("OCCUPATION_TYPE / EXT_SOURCE_3 / target")
     fig = px.box(application,
-                 x="OBS_30_CNT_SOCIAL_CIRCLE",
+                 x="OCCUPATION_TYPE",
                  y="EXT_SOURCE_3",
                  color="TARGET",
                  notched=True)
     st.plotly_chart(fig)
 
-    st.header("OBS_30_CNT_SOCIAL_CIRCLE / EXT_SOURCE_2 / target")
+    st.header("OCCUPATION_TYPE  / EXT_SOURCE_2 / target")
     fig = px.box(application,
-                 x="OBS_30_CNT_SOCIAL_CIRCLE",
+                 x="OCCUPATION_TYPE",
                  y="EXT_SOURCE_2",
                  color="TARGET",
                  notched=True)
@@ -202,12 +252,33 @@ def page2():
 
     # SHAP
     X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
-    X = X1[[
-        'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
-        'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR',
-        'CNT_CHILDREN', 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE',
-        'FLAG_PHONE'
-    ]]
+
+    if withoutAPI:
+        X = X1[[
+            'CODE_GENDER', 'AGE', 'CNT_CHILDREN', 'DEF_30_CNT_SOCIAL_CIRCLE',
+            'NAME_EDUCATION_TYPE_High education',
+            'NAME_EDUCATION_TYPE_Low education',
+            'NAME_EDUCATION_TYPE_Medium education',
+            'ORGANIZATION_TYPE_Construction', 'ORGANIZATION_TYPE_Electricity',
+            'ORGANIZATION_TYPE_Government/Industry', 'ORGANIZATION_TYPE_Medicine',
+            'ORGANIZATION_TYPE_Other/Construction/Agriculture',
+            'ORGANIZATION_TYPE_School', 'ORGANIZATION_TYPE_Services',
+            'ORGANIZATION_TYPE_Trade/Business',
+            'OCCUPATION_TYPE_Accountants/HR staff/Managers',
+            'OCCUPATION_TYPE_Core/Sales staff', 'OCCUPATION_TYPE_Laborers',
+            'OCCUPATION_TYPE_Medicine staff',
+            'OCCUPATION_TYPE_Private service staff', 'OCCUPATION_TYPE_Tech Staff',
+            'NAME_FAMILY_STATUS_Married', 'NAME_FAMILY_STATUS_Single',
+            'AMT_INCOME_TOTAL', 'INCOME_CREDIT_PERC', 'DAYS_EMPLOYED_PERC',
+            'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3'
+        ]]
+    else :
+        X = X1[[
+            'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
+            'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR',
+            'CNT_CHILDREN', 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE',
+            'FLAG_PHONE'
+        ]]
 
     # Variables globales
     st.header('Variables globales du modèle {}:'.format(model_name))
@@ -269,76 +340,85 @@ def page3():
     EXT_SOURCE_3 = st.slider("EXT_SOURCE_3", 0.1, 1.0, 0.1)
     X2['EXT_SOURCE_3'] = EXT_SOURCE_3
 
-    #NAME_EDUCATION_TYPE = st.selectbox("NAME_EDUCATION_TYPE",options=['Low education','Medium education','High education'])
-    #NAME_EDUCATION_TYPE_Low_education , NAME_EDUCATION_TYPE_Medium_education , NAME_EDUCATION_TYPE_High_education = 0,0,0
-    #if NAME_EDUCATION_TYPE == 'Low education':
-    #     #NAME_EDUCATION_TYPE_Low_education = 1
-    #     X2['NAME_EDUCATION_TYPE_Low education'] = 1
-    #elif NAME_EDUCATION_TYPE == 'Medium education':
-    #     #NAME_EDUCATION_TYPE_Medium_education = 1
-    #     X2['NAME_EDUCATION_TYPE_Medium education'] = 1
-    #else:
-    #     #NAME_EDUCATION_TYPE_High_education = 1
-    #     X2['NAME_EDUCATION_TYPE_High education']   = 1
+    NAME_EDUCATION_TYPE = st.selectbox("NAME_EDUCATION_TYPE",options=['Low education','Medium education','High education'])
+    NAME_EDUCATION_TYPE_Low_education , NAME_EDUCATION_TYPE_Medium_education , NAME_EDUCATION_TYPE_High_education = 0,0,0
+    if NAME_EDUCATION_TYPE == 'Low education':
+        #NAME_EDUCATION_TYPE_Low_education = 1
+        X2['NAME_EDUCATION_TYPE_Low education'] = 1
+    elif NAME_EDUCATION_TYPE == 'Medium education':
+        #NAME_EDUCATION_TYPE_Medium_education = 1
+        X2['NAME_EDUCATION_TYPE_Medium education'] = 1
+    else:
+        #NAME_EDUCATION_TYPE_High_education = 1
+        X2['NAME_EDUCATION_TYPE_High education']   = 1
 
-    # ORGANIZATION_TYPE = st.selectbox(
-    #     "ORGANIZATION_TYPE", options=['Medicine', 'School', 'Services'])
-    # #ORGANIZATION_TYPE_Construction, ORGANIZATION_TYPE_Electricity, ORGANIZATION_TYPE_Government_Industry = 0,0,0
-    # ORGANIZATION_TYPE_Medicine, ORGANIZATION_TYPE_School, ORGANIZATION_TYPE_Services, = 0, 0, 0
-    # #ORGANIZATION_TYPE_Other_Construction_Agriculture, ORGANIZATION_TYPE_Trade_Business = 0,0
-    # if ORGANIZATION_TYPE == 'Construction':
-    #     ORGANIZATION_TYPE_Construction = 1
-    #     X2['ORGANIZATION_TYPE_Construction'] = 1
-    # elif ORGANIZATION_TYPE == 'Electricity':
-    #     ORGANIZATION_TYPE_Electricity = 1
-    #     X2['ORGANIZATION_TYPE_Electricity'] = 1
-    # elif ORGANIZATION_TYPE == 'Government/Industry':
-    #     ORGANIZATION_TYPE_Government_Industry = 1
-    #     X2['ORGANIZATION_TYPE_Government/Industry'] = 1
-    # elif ORGANIZATION_TYPE == 'Medicine':
-    #     ORGANIZATION_TYPE_Medicine = 1
-    #     X2['ORGANIZATION_TYPE_Medicine'] = 1
-    # elif ORGANIZATION_TYPE == 'Other/Construction/Agriculture':
-    #     ORGANIZATION_TYPE_Other_Construction_Agriculture = 1
-    #     X2['ORGANIZATION_TYPE_Other/Construction/Agriculture'] = 1
-    # elif ORGANIZATION_TYPE == 'School':
-    #     ORGANIZATION_TYPE_School = 1
-    #     X2['ORGANIZATION_TYPE_School'] = 1
-    # elif ORGANIZATION_TYPE == 'Services':
-    #     ORGANIZATION_TYPE_Services = 1
-    #     X2['ORGANIZATION_TYPE_Services'] = 1
-    # elif ORGANIZATION_TYPE == 'Trade/Business':
-    #     ORGANIZATION_TYPE_Trade_Business = 1
-    #     X2['ORGANIZATION_TYPE_Trade/Business'] = 1
+    ORGANIZATION_TYPE = st.selectbox(
+        "ORGANIZATION_TYPE", options=['Medicine', 'School', 'Services'])
+    #ORGANIZATION_TYPE_Construction, ORGANIZATION_TYPE_Electricity, ORGANIZATION_TYPE_Government_Industry = 0,0,0
+    ORGANIZATION_TYPE_Medicine, ORGANIZATION_TYPE_School, ORGANIZATION_TYPE_Services, = 0, 0, 0
+    #ORGANIZATION_TYPE_Other_Construction_Agriculture, ORGANIZATION_TYPE_Trade_Business = 0,0
+    if ORGANIZATION_TYPE == 'Construction':
+        ORGANIZATION_TYPE_Construction = 1
+        X2['ORGANIZATION_TYPE_Construction'] = 1
+    elif ORGANIZATION_TYPE == 'Electricity':
+        ORGANIZATION_TYPE_Electricity = 1
+        X2['ORGANIZATION_TYPE_Electricity'] = 1
+    elif ORGANIZATION_TYPE == 'Government/Industry':
+        ORGANIZATION_TYPE_Government_Industry = 1
+        X2['ORGANIZATION_TYPE_Government/Industry'] = 1
+    elif ORGANIZATION_TYPE == 'Medicine':
+        ORGANIZATION_TYPE_Medicine = 1
+        X2['ORGANIZATION_TYPE_Medicine'] = 1
+    elif ORGANIZATION_TYPE == 'Other/Construction/Agriculture':
+        ORGANIZATION_TYPE_Other_Construction_Agriculture = 1
+        X2['ORGANIZATION_TYPE_Other/Construction/Agriculture'] = 1
+    elif ORGANIZATION_TYPE == 'School':
+        ORGANIZATION_TYPE_School = 1
+        X2['ORGANIZATION_TYPE_School'] = 1
+    elif ORGANIZATION_TYPE == 'Services':
+        ORGANIZATION_TYPE_Services = 1
+        X2['ORGANIZATION_TYPE_Services'] = 1
+    elif ORGANIZATION_TYPE == 'Trade/Business':
+        ORGANIZATION_TYPE_Trade_Business = 1
+        X2['ORGANIZATION_TYPE_Trade/Business'] = 1
 
-    # OCCUPATION_TYPE = st.selectbox("OCCUPATION_TYPE",
-    #                                options=[
-    #                                    'Accountants_HR_staff_Managers',
-    #                                    'Private_service_staff',
-    #                                    'Medicine staff'
-    #                                ])
+    OCCUPATION_TYPE = st.selectbox("OCCUPATION_TYPE",
+                                   options=[
+                                       'Accountants_HR_staff_Managers',
+                                       'Private_service_staff',
+                                       'Medicine staff'
+                                   ])
 
-    # OCCUPATION_TYPE_Accountants_HR_staff_Managers, OCCUPATION_TYPE_Private_service_staff, OCCUPATION_TYPE_Medicine_staff = 0, 0, 0
-    # #OCCUPATION_TYPE_Core_Sales_staff, OCCUPATION_TYPE_Laborers = 0,0,0
-    # #OCCUPATION_TYPE_Medicine_staff, OCCUPATION_TYPE_Private_service_staff, OCCUPATION_TYPE_Tech_Staff = 0,0,0
-    # if OCCUPATION_TYPE == 'Accountants/HR staff/Managers':
-    #     OCCUPATION_TYPE_Accountants_HR_staff_Managers = 1
-    #     X2['OCCUPATION_TYPE_Accountants/HR staff/Managers'] = 1
-    # elif OCCUPATION_TYPE == 'Core/Sales staff':
-    #     OCCUPATION_TYPE_Core_Sales_staff = 1
-    #     X2['OCCUPATION_TYPE_Core/Sales staff'] = 1
-    # elif OCCUPATION_TYPE == 'Laborers':
-    #     OCCUPATION_TYPE_Laborers = 1
-    #     X2['OCCUPATION_TYPE_Laborers'] = 1
-    # elif OCCUPATION_TYPE == 'Medicine staff':
-    #     OCCUPATION_TYPE_Medicine_staff = 1
-    #     X2['OCCUPATION_TYPE_Medicine staff'] = 1
-    # elif OCCUPATION_TYPE == 'Private service staff':
-    #     OCCUPATION_TYPE_Private_service_staff = 1
-    #     X2['OCCUPATION_TYPE_Private service staff'] = 1
-    # elif OCCUPATION_TYPE == 'Tech Staff':
-    #     OCCUPATION_TYPE_Tech_Staff = 1
-    #     X2['OCCUPATION_TYPE_Tech Staff'] = 1
+    OCCUPATION_TYPE_Accountants_HR_staff_Managers, OCCUPATION_TYPE_Private_service_staff, OCCUPATION_TYPE_Medicine_staff = 0, 0, 0
+    #OCCUPATION_TYPE_Core_Sales_staff, OCCUPATION_TYPE_Laborers = 0,0,0
+    #OCCUPATION_TYPE_Medicine_staff, OCCUPATION_TYPE_Private_service_staff, OCCUPATION_TYPE_Tech_Staff = 0,0,0
+    if OCCUPATION_TYPE == 'Accountants/HR staff/Managers':
+        OCCUPATION_TYPE_Accountants_HR_staff_Managers = 1
+        X2['OCCUPATION_TYPE_Accountants/HR staff/Managers'] = 1
+    elif OCCUPATION_TYPE == 'Core/Sales staff':
+        OCCUPATION_TYPE_Core_Sales_staff = 1
+        X2['OCCUPATION_TYPE_Core/Sales staff'] = 1
+    elif OCCUPATION_TYPE == 'Laborers':
+        OCCUPATION_TYPE_Laborers = 1
+        X2['OCCUPATION_TYPE_Laborers'] = 1
+    elif OCCUPATION_TYPE == 'Medicine staff':
+        OCCUPATION_TYPE_Medicine_staff = 1
+        X2['OCCUPATION_TYPE_Medicine staff'] = 1
+    elif OCCUPATION_TYPE == 'Private service staff':
+        OCCUPATION_TYPE_Private_service_staff = 1
+        X2['OCCUPATION_TYPE_Private service staff'] = 1
+    elif OCCUPATION_TYPE == 'Tech Staff':
+        OCCUPATION_TYPE_Tech_Staff = 1
+        X2['OCCUPATION_TYPE_Tech Staff'] = 1
+
+    # X = X1[[
+    #         'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
+    #         'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR', 'CNT_CHILDREN',
+    #         'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE', 'FLAG_PHONE'
+    #     ]]
+
+    # result = prediction(X)
+    result = int(json.loads(request_prediction(LRSMOTE_URI, X2).content)["prediction"])
 
     X3 = X2[[
         'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
@@ -347,9 +427,12 @@ def page3():
         'FLAG_PHONE'
     ]]
 
-    # transparence = prediction(X3)
-    transparence = request_prediction(LRSMOTE_URI, X3)[0]
-
+    if withoutAPI:
+        transparence = prediction(X3)
+    else:
+        transparence = int(
+            json.loads(request_prediction(LRSMOTE_URI,
+                                          X3).content)["prediction"])
 
     #st.write('---debug prediction ', transparence)
 
@@ -379,5 +462,5 @@ keys = list(my_dict.keys())
 selected_page = st.sidebar.selectbox("Select a page", keys)
 my_dict[selected_page]()
 
-if __name__ == '__main__':
-    main_page()
+# if __name__ == '__main__':
+#     main_page()

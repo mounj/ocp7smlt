@@ -11,3 +11,7 @@ imblearn
 streamlit
 streamlit_shap
 plotly
+scikit-learn
+StandardScaler
+shap
+xgboost
