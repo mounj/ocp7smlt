@@ -1,5 +1,7 @@
+# Chargement des librairies nécessaires
 from cProfile import label
 from operator import contains
+from tkinter.tix import COLUMN
 import streamlit as st
 from streamlit_shap import st_shap
 import shap
@@ -17,11 +19,18 @@ import plotly.express as px
 import plotly.figure_factory as ff
 import plotly.graph_objs as go
 import streamlit.components.v1 as components
+from sklearn.ensemble import RandomForestClassifier
 from PIL import Image
 import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
+# Bandeau d'accueil
+st.sidebar.title("Prêt à dépenser")
+image = Image.open("img_depense.jpg")
+st.sidebar.image(image)
+
+# Paramètre d'activation de l'usage de l'API en ligne ou non
 LRSMOTE_URI = 'https://ocp7gitapi.herokuapp.com/predict'
 withoutAPI = True
 offline_input = st.sidebar.radio('Connexion API:', ('Oui', 'Non'))
@@ -29,40 +38,25 @@ if offline_input == 'Oui':
     withoutAPI = False
 else :
     withoutAPI = True
-# st.sidebar.write(offline_input)
 
-st.sidebar.title("Prêt à dépenser")
-#st.write ('---debug chargement image ')
-########################################################
-# Loading images to the website
-########################################################
-image = Image.open("img_depense.jpg")
-st.sidebar.image(image)
-
-#st.write ('---debug chargement du modèle ')
-# Chargement du modèle
+# Chargement du modèle - Possibilité de choisir un modèle au besoin
 current_path = os.getcwd()
 model_name = 'LR_SMOTE.pkl'
 credit_path = os.path.join(current_path, model_name)
 with open(credit_path, 'rb') as handle:
     model = pickle.load(handle)
 
-#st.write ('---debug chargement des fonctions')
-#def st_shap(plot, height=None):
-#    shap_html = f"<head>{shap.getjs()}</head><body>{plot.html()}</body>"
-#    components.html(shap_html, height=height)
-
-
+# Méthode de prédiction en local ou en ligne
 def prediction(X):
+    '''Réalise une prédiction à partir du modèle en local'''
     prediction = model.predict(X)
     return prediction
 
 
 def request_prediction(model_uri, data):
+    '''Réalise une prédiction à partur de l'API hébergée sur Heroku'''
     response = {}
     headers = {"Content-Type": "application/json"}
-
-    # st.write('---data : {}'.format(type(data)))
 
     data_json = {'data': data.to_json()}
 
@@ -78,13 +72,27 @@ def request_prediction(model_uri, data):
     return response
 
 
+def feature_importance(df):
+    feature_names = df.drop(columns='TARGET').columns
+    forest = RandomForestClassifier(random_state=0)
+    forest.fit(df.drop(columns='TARGET'), df['TARGET'])
+
+    forest_importances = pd.Series(
+        forest.feature_importances_,
+        index=feature_names).sort_values(ascending=False)
+
+    return forest_importances
+# pd.DataFrame(forest_importances, columns=['importance']).reset_index().rename(columns={'index': 'feature'})
+
+
+# Affichage des features importantes
 def impPlot(imp, name):
     figure = px.bar(imp,
                     x=imp.values,
                     y=imp.keys(),
                     labels={
                         'x': 'Importance Value',
-                        'index': 'Columns'
+                        'index': 'Feature'
                     },
                     text=np.round(imp.values, 2),
                     title=name + ' Feature Selection Plot',
@@ -96,43 +104,29 @@ def impPlot(imp, name):
     })
     st.plotly_chart(figure)
 
-
+# Chargement du fichier de démonstration
 def chargement_data(path):
     dataframe = pd.read_csv(path)
-    liste_id = dataframe['SK_ID_CURR'].tolist()
+    liste_id = dataframe['SK_ID_CURR'].astype(int).tolist()
     liste_id.insert(0,0)
     return dataframe, liste_id
 
-
-#st.write ('---debug lecture df1')
-# Pour alimenter le modèle avec les informations du client - les variables sont encodées !!!!!!
+# Utilisation des données clientes pour présenter l'objet de l'étude d'un prêt
 if withoutAPI:
-    examples_file = 'application_API.csv'
+    examples_file = 'new_train_cleaned_application.csv'  #'application_API.csv'
 else :
-    examples_file = 'new_train_application.csv'
-
+    examples_file = 'new_train_cleaned_application.csv'
 dataframe, liste_id = chargement_data(examples_file)
 
-#st.write ('---debug les pages')
-
-
 def main_page():
-    st.sidebar.markdown("# Calcul du risque")
-    #st.write ('---Calcul du risque')
-
+    """ Calcul de la prédiction pour le client issue de la base"""
     st.title('Calcul du risque de remboursement de prêt')
+    st.subheader('Prédictions de scoring client')
 
-    st.subheader(
-        "Prédictions de scoring client et positionnement dans l'ensemble des clients"
-    )
-
-    # Affichage 1ère fois
     if 'client' not in st.session_state:
         st.session_state.client = 0
     else:
-        # Retour pagination
         id_input = st.session_state.client
-        #st.write ('---debug client retour pagination main ' ,id_input)
 
     id_input = st.selectbox('Choisissez le client que vous souhaitez visualiser', liste_id)
     st.session_state.client = id_input
@@ -149,26 +143,36 @@ def main_page():
         X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
         if withoutAPI:
             X = X1[[
-                'CODE_GENDER', 'AGE', 'CNT_CHILDREN',
-                'DEF_30_CNT_SOCIAL_CIRCLE',
-                'NAME_EDUCATION_TYPE_High education',
-                'NAME_EDUCATION_TYPE_Low education',
-                'NAME_EDUCATION_TYPE_Medium education',
-                'ORGANIZATION_TYPE_Construction',
-                'ORGANIZATION_TYPE_Electricity',
-                'ORGANIZATION_TYPE_Government/Industry',
-                'ORGANIZATION_TYPE_Medicine',
-                'ORGANIZATION_TYPE_Other/Construction/Agriculture',
-                'ORGANIZATION_TYPE_School', 'ORGANIZATION_TYPE_Services',
-                'ORGANIZATION_TYPE_Trade/Business',
-                'OCCUPATION_TYPE_Accountants/HR staff/Managers',
-                'OCCUPATION_TYPE_Core/Sales staff', 'OCCUPATION_TYPE_Laborers',
-                'OCCUPATION_TYPE_Medicine staff',
-                'OCCUPATION_TYPE_Private service staff',
-                'OCCUPATION_TYPE_Tech Staff', 'NAME_FAMILY_STATUS_Married',
-                'NAME_FAMILY_STATUS_Single', 'AMT_INCOME_TOTAL',
-                'INCOME_CREDIT_PERC', 'DAYS_EMPLOYED_PERC', 'EXT_SOURCE_1',
-                'EXT_SOURCE_2', 'EXT_SOURCE_3'
+                # 'CODE_GENDER', 'AGE', 'CNT_CHILDREN',
+                # 'DEF_30_CNT_SOCIAL_CIRCLE',
+                # 'NAME_EDUCATION_TYPE_High education',
+                # 'NAME_EDUCATION_TYPE_Low education',
+                # 'NAME_EDUCATION_TYPE_Medium education',
+                # 'ORGANIZATION_TYPE_Construction',
+                # 'ORGANIZATION_TYPE_Electricity',
+                # 'ORGANIZATION_TYPE_Government/Industry',
+                # 'ORGANIZATION_TYPE_Medicine',
+                # 'ORGANIZATION_TYPE_Other/Construction/Agriculture',
+                # 'ORGANIZATION_TYPE_School', 'ORGANIZATION_TYPE_Services',
+                # 'ORGANIZATION_TYPE_Trade/Business',
+                # 'OCCUPATION_TYPE_Accountants/HR staff/Managers',
+                # 'OCCUPATION_TYPE_Core/Sales staff', 'OCCUPATION_TYPE_Laborers',
+                # 'OCCUPATION_TYPE_Medicine staff',
+                # 'OCCUPATION_TYPE_Private service staff',
+                # 'OCCUPATION_TYPE_Tech Staff', 'NAME_FAMILY_STATUS_Married',
+                # 'NAME_FAMILY_STATUS_Single', 'AMT_INCOME_TOTAL',
+                # 'INCOME_CREDIT_PERC', 'DAYS_EMPLOYED_PERC', 'EXT_SOURCE_1',
+                # 'EXT_SOURCE_2', 'EXT_SOURCE_3'
+                'EXT_SOURCE_3',
+                'OBS_60_CNT_SOCIAL_CIRCLE',
+                'EXT_SOURCE_2',
+                'OBS_30_CNT_SOCIAL_CIRCLE',
+                'AMT_REQ_CREDIT_BUREAU_YEAR',
+                'CNT_CHILDREN',
+                'CNT_FAM_MEMBERS',
+                'EXT_SOURCE_1',
+                'PAYMENT_RATE',
+                'FLAG_PHONE'
             ]]
         else :
             X = X1[[
@@ -223,7 +227,6 @@ def page2():
     st.write(X_infos_client)
 
     # scatter plot
-
     st.header("OCCUPATION_TYPE / EXT_SOURCE_3 / target")
     fig = px.box(application,
                  x="OCCUPATION_TYPE",
@@ -241,60 +244,48 @@ def page2():
     st.plotly_chart(fig)
 
     # # SHAP
-    # X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
+    X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
 
-    # if withoutAPI:
-    #     X = X1[[
-    #         'CODE_GENDER', 'AGE', 'CNT_CHILDREN', 'DEF_30_CNT_SOCIAL_CIRCLE',
-    #         'NAME_EDUCATION_TYPE_High education',
-    #         'NAME_EDUCATION_TYPE_Low education',
-    #         'NAME_EDUCATION_TYPE_Medium education',
-    #         'ORGANIZATION_TYPE_Construction', 'ORGANIZATION_TYPE_Electricity',
-    #         'ORGANIZATION_TYPE_Government/Industry', 'ORGANIZATION_TYPE_Medicine',
-    #         'ORGANIZATION_TYPE_Other/Construction/Agriculture',
-    #         'ORGANIZATION_TYPE_School', 'ORGANIZATION_TYPE_Services',
-    #         'ORGANIZATION_TYPE_Trade/Business',
-    #         'OCCUPATION_TYPE_Accountants/HR staff/Managers',
-    #         'OCCUPATION_TYPE_Core/Sales staff', 'OCCUPATION_TYPE_Laborers',
-    #         'OCCUPATION_TYPE_Medicine staff',
-    #         'OCCUPATION_TYPE_Private service staff', 'OCCUPATION_TYPE_Tech Staff',
-    #         'NAME_FAMILY_STATUS_Married', 'NAME_FAMILY_STATUS_Single',
-    #         'AMT_INCOME_TOTAL', 'INCOME_CREDIT_PERC', 'DAYS_EMPLOYED_PERC',
-    #         'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3'
-    #     ]]
-    # else :
-    #     X = X1[[
-    #         'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
-    #         'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR',
-    #         'CNT_CHILDREN', 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE',
-    #         'FLAG_PHONE'
-    #     ]]
+    if withoutAPI:
+        X = X1[[
+            # 'CODE_GENDER', 'AGE', 'CNT_CHILDREN', 'DEF_30_CNT_SOCIAL_CIRCLE',
+            # 'NAME_EDUCATION_TYPE_High education',
+            # 'NAME_EDUCATION_TYPE_Low education',
+            # 'NAME_EDUCATION_TYPE_Medium education',
+            # 'ORGANIZATION_TYPE_Construction', 'ORGANIZATION_TYPE_Electricity',
+            # 'ORGANIZATION_TYPE_Government/Industry', 'ORGANIZATION_TYPE_Medicine',
+            # 'ORGANIZATION_TYPE_Other/Construction/Agriculture',
+            # 'ORGANIZATION_TYPE_School', 'ORGANIZATION_TYPE_Services',
+            # 'ORGANIZATION_TYPE_Trade/Business',
+            # 'OCCUPATION_TYPE_Accountants/HR staff/Managers',
+            # 'OCCUPATION_TYPE_Core/Sales staff', 'OCCUPATION_TYPE_Laborers',
+            # 'OCCUPATION_TYPE_Medicine staff',
+            # 'OCCUPATION_TYPE_Private service staff', 'OCCUPATION_TYPE_Tech Staff',
+            # 'NAME_FAMILY_STATUS_Married', 'NAME_FAMILY_STATUS_Single',
+            # 'AMT_INCOME_TOTAL', 'INCOME_CREDIT_PERC', 'DAYS_EMPLOYED_PERC',
+            # 'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3'
+            'EXT_SOURCE_3',
+            'OBS_60_CNT_SOCIAL_CIRCLE',
+            'EXT_SOURCE_2',
+            'OBS_30_CNT_SOCIAL_CIRCLE',
+            'AMT_REQ_CREDIT_BUREAU_YEAR',
+            'CNT_CHILDREN',
+            'CNT_FAM_MEMBERS',
+            'EXT_SOURCE_1',
+            'PAYMENT_RATE',
+            'FLAG_PHONE'
+        ]]
+    else :
+        X = X1[[
+            'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
+            'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR',
+            'CNT_CHILDREN', 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE',
+            'FLAG_PHONE'
+        ]]
 
-    # # Variables globales
-    # st.header('Variables globales du modèle {}:'.format(model_name))
-    # feat_importances = pd.Series(model.feature_importances_,
-    #                              index=X.columns).sort_values(ascending=False)
-    # impPlot(feat_importances, model_name)
-
-    # # Variables locales
-    # st.header('Variables locales du modèle {} :'.format(model_name))
-    # # compute SHAP values
-    # explainer = shap.Explainer(model, X)
-    # shap_values = explainer(X)
-
-    # #st_shap(shap.plots.waterfall(shap_values[0]), height=300)
-    # #st_shap(shap.plots.beeswarm(shap_values), height=300)
-
-    # explainer = shap.TreeExplainer(model)
-    # shap_values = explainer.shap_values(X)
-
-    # st_shap(shap.summary_plot(shap_values, X, plot_type="bar"))
-    # #st_shap(shap.summary_plot(shap_values, X))
-
-    # st_shap(shap.force_plot(explainer.expected_value, shap_values, X),
-    #         height=200,
-    #         width=1000)
-
+    # Variables globales
+    feat_imp = feature_importance(dataframe)
+    impPlot(feat_imp[:20], 'RFC')
 
 def page3():
 
