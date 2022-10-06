@@ -141,45 +141,20 @@ def main_page():
         st.write('Please select a client')
     else:
         X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
-        if withoutAPI:
-            X = X1[[
-                # 'CODE_GENDER', 'AGE', 'CNT_CHILDREN',
-                # 'DEF_30_CNT_SOCIAL_CIRCLE',
-                # 'NAME_EDUCATION_TYPE_High education',
-                # 'NAME_EDUCATION_TYPE_Low education',
-                # 'NAME_EDUCATION_TYPE_Medium education',
-                # 'ORGANIZATION_TYPE_Construction',
-                # 'ORGANIZATION_TYPE_Electricity',
-                # 'ORGANIZATION_TYPE_Government/Industry',
-                # 'ORGANIZATION_TYPE_Medicine',
-                # 'ORGANIZATION_TYPE_Other/Construction/Agriculture',
-                # 'ORGANIZATION_TYPE_School', 'ORGANIZATION_TYPE_Services',
-                # 'ORGANIZATION_TYPE_Trade/Business',
-                # 'OCCUPATION_TYPE_Accountants/HR staff/Managers',
-                # 'OCCUPATION_TYPE_Core/Sales staff', 'OCCUPATION_TYPE_Laborers',
-                # 'OCCUPATION_TYPE_Medicine staff',
-                # 'OCCUPATION_TYPE_Private service staff',
-                # 'OCCUPATION_TYPE_Tech Staff', 'NAME_FAMILY_STATUS_Married',
-                # 'NAME_FAMILY_STATUS_Single', 'AMT_INCOME_TOTAL',
-                # 'INCOME_CREDIT_PERC', 'DAYS_EMPLOYED_PERC', 'EXT_SOURCE_1',
-                # 'EXT_SOURCE_2', 'EXT_SOURCE_3'
-                'EXT_SOURCE_3',
-                'OBS_60_CNT_SOCIAL_CIRCLE',
-                'EXT_SOURCE_2',
-                'OBS_30_CNT_SOCIAL_CIRCLE',
-                'AMT_REQ_CREDIT_BUREAU_YEAR',
-                'CNT_CHILDREN',
-                'CNT_FAM_MEMBERS',
-                'EXT_SOURCE_1',
-                'PAYMENT_RATE',
-                'FLAG_PHONE'
-            ]]
-        else :
-            X = X1[[
-                'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
-                'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR', 'CNT_CHILDREN',
-                'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE', 'FLAG_PHONE'
-                ]]
+        # X = X1[[
+        #     'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH', 'DAYS_ID_PUBLISH',
+        #     'PAYMENT_RATE', 'DAYS_REGISTRATION', 'INCOME_CREDIT_PERC',
+        #     'ANNUITY_INCOME_PERC', 'AMT_ANNUITY', 'DAYS_LAST_PHONE_CHANGE',
+        #     'DAYS_EMPLOYED', 'EXT_SOURCE_1', 'INCOME_PER_PERSON',
+        #     'DAYS_EMPLOYED_PERC', 'AMT_CREDIT', 'REGION_POPULATION_RELATIVE',
+        #     'AMT_INCOME_TOTAL', 'AMT_GOODS_PRICE', 'HOUR_APPR_PROCESS_START',
+        #     'AMT_REQ_CREDIT_BUREAU_YEAR'
+        # ]]
+        X = X1 [[
+               'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
+          'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR',
+          'CNT_CHILDREN', 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE',
+          'FLAG_PHONE']]
 
         if withoutAPI:
             st.write('local model')
@@ -206,21 +181,17 @@ def main_page():
 
 
 def page2():
-
-    st.sidebar.markdown("# Interprétabilité")
-    #st.write ('--- Interprétation')
-
     st.title("Interprétabilité du modèle")
 
     #st.write ('--- session_state.client page 2')
     id_input = st.session_state.client
 
     st.write('Pour le client  ', id_input,
-             ' poids des variables dans le modèle {}'.format(model_name))
+             ' poids des variables dans le modèle rfc')
 
     # informations du client
     st.header("Informations du client")
-    examples_file = 'application.csv'
+    examples_file = 'new_train_cleaned_application.csv'  #'application.csv'
     application, liste_id = chargement_data(examples_file)
     # application.drop(['Unnamed: 0'], axis=1, inplace=True)
     X_infos_client = application[application['SK_ID_CURR'] == id_input]
@@ -228,79 +199,49 @@ def page2():
 
     # scatter plot
     st.header("OCCUPATION_TYPE / EXT_SOURCE_3 / target")
-    fig = px.box(application,
-                 x="OCCUPATION_TYPE",
+    fig = px.bar(application,
+                 x="DAYS_BIRTH",
                  y="EXT_SOURCE_3",
                  color="TARGET",
                  notched=True)
     st.plotly_chart(fig)
 
-    st.header("OCCUPATION_TYPE  / EXT_SOURCE_2 / target")
-    fig = px.box(application,
-                 x="OCCUPATION_TYPE",
-                 y="EXT_SOURCE_2",
-                 color="TARGET",
-                 notched=True)
-    st.plotly_chart(fig)
 
-    # # SHAP
     X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
 
-    if withoutAPI:
-        X = X1[[
-            # 'CODE_GENDER', 'AGE', 'CNT_CHILDREN', 'DEF_30_CNT_SOCIAL_CIRCLE',
-            # 'NAME_EDUCATION_TYPE_High education',
-            # 'NAME_EDUCATION_TYPE_Low education',
-            # 'NAME_EDUCATION_TYPE_Medium education',
-            # 'ORGANIZATION_TYPE_Construction', 'ORGANIZATION_TYPE_Electricity',
-            # 'ORGANIZATION_TYPE_Government/Industry', 'ORGANIZATION_TYPE_Medicine',
-            # 'ORGANIZATION_TYPE_Other/Construction/Agriculture',
-            # 'ORGANIZATION_TYPE_School', 'ORGANIZATION_TYPE_Services',
-            # 'ORGANIZATION_TYPE_Trade/Business',
-            # 'OCCUPATION_TYPE_Accountants/HR staff/Managers',
-            # 'OCCUPATION_TYPE_Core/Sales staff', 'OCCUPATION_TYPE_Laborers',
-            # 'OCCUPATION_TYPE_Medicine staff',
-            # 'OCCUPATION_TYPE_Private service staff', 'OCCUPATION_TYPE_Tech Staff',
-            # 'NAME_FAMILY_STATUS_Married', 'NAME_FAMILY_STATUS_Single',
-            # 'AMT_INCOME_TOTAL', 'INCOME_CREDIT_PERC', 'DAYS_EMPLOYED_PERC',
-            # 'EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3'
-            'EXT_SOURCE_3',
-            'OBS_60_CNT_SOCIAL_CIRCLE',
-            'EXT_SOURCE_2',
-            'OBS_30_CNT_SOCIAL_CIRCLE',
-            'AMT_REQ_CREDIT_BUREAU_YEAR',
-            'CNT_CHILDREN',
-            'CNT_FAM_MEMBERS',
-            'EXT_SOURCE_1',
-            'PAYMENT_RATE',
-            'FLAG_PHONE'
-        ]]
-    else :
-        X = X1[[
-            'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
-            'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR',
-            'CNT_CHILDREN', 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE',
-            'FLAG_PHONE'
-        ]]
+    # train model with the 20 features
+    # X = X1[
+    #         [
+    #         'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH', 'DAYS_ID_PUBLISH',
+    #         'PAYMENT_RATE', 'DAYS_REGISTRATION', 'INCOME_CREDIT_PERC',
+    #         'ANNUITY_INCOME_PERC', 'AMT_ANNUITY', 'DAYS_LAST_PHONE_CHANGE',
+    #         'DAYS_EMPLOYED', 'EXT_SOURCE_1', 'INCOME_PER_PERSON',
+    #         'DAYS_EMPLOYED_PERC', 'AMT_CREDIT', 'REGION_POPULATION_RELATIVE',
+    #         'AMT_INCOME_TOTAL', 'AMT_GOODS_PRICE', 'HOUR_APPR_PROCESS_START',
+    #         'AMT_REQ_CREDIT_BUREAU_YEAR'
+    #     ]]
+
+    X = X1[[
+        'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
+        'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR',
+        'CNT_CHILDREN', 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE',
+        'FLAG_PHONE'
+    ]]
 
     # Variables globales
     feat_imp = feature_importance(dataframe)
     impPlot(feat_imp[:20], 'RFC')
 
 def page3():
-
-    st.sidebar.markdown("# Transparence")
-    #st.write ('--- Transparence')
-
     id_input = st.session_state.client
     st.header("Informations du client")
     st.write("Transparence des informations du client  ", id_input)
 
     # Pour les informations du client
-    examples_file = 'application_API.csv'
+    examples_file = 'new_train_cleaned_application.csv' #'application_API.csv'
     application, liste_id = chargement_data(examples_file)
     application = application[~((application['EXT_SOURCE_1'].isnull()))]
-    application.drop(['Unnamed: 0'], axis=1, inplace=True)
+    # application.drop(['Unnamed: 0'], axis=1, inplace=True)
     X_infos_client = application[application['SK_ID_CURR'] == id_input]
     st.write(X_infos_client)
 
@@ -308,9 +249,6 @@ def page3():
     # Saisie des informations Client dans X2 pour prédiction nouvelle
 
     X2 = dataframe[dataframe['SK_ID_CURR'] == id_input]
-
-    #AMT_INCOME_TOTAL = st.slider("AMT_INCOME_TOTAL", 1, 500000, 220000)
-    #X2['AMT_INCOME_TOTAL'] =  AMT_INCOME_TOTAL
 
     EXT_SOURCE_1 = st.slider("EXT_SOURCE_1", 0.1, 1.0, 0.1)
     X2['EXT_SOURCE_1'] = EXT_SOURCE_1
@@ -321,86 +259,42 @@ def page3():
     EXT_SOURCE_3 = st.slider("EXT_SOURCE_3", 0.1, 1.0, 0.1)
     X2['EXT_SOURCE_3'] = EXT_SOURCE_3
 
-    NAME_EDUCATION_TYPE = st.selectbox("NAME_EDUCATION_TYPE",options=['Low education','Medium education','High education'])
-    NAME_EDUCATION_TYPE_Low_education , NAME_EDUCATION_TYPE_Medium_education , NAME_EDUCATION_TYPE_High_education = 0,0,0
-    if NAME_EDUCATION_TYPE == 'Low education':
-        #NAME_EDUCATION_TYPE_Low_education = 1
-        X2['NAME_EDUCATION_TYPE_Low education'] = 1
-    elif NAME_EDUCATION_TYPE == 'Medium education':
-        #NAME_EDUCATION_TYPE_Medium_education = 1
-        X2['NAME_EDUCATION_TYPE_Medium education'] = 1
+    AGE_TRANCHE = st.selectbox("Tranche d'âge",options=['18-25', '26-35', '35-45', '45+'])
+    if AGE_TRANCHE == '18-24':
+        X2['DAYS_BIRTH'] = 20*-360
+    if AGE_TRANCHE =='25-34':
+        X2['DAYS_BIRTH'] = 30*-360
+    if AGE_TRANCHE =='35-45':
+        X2['DAYS_BIRTH'] = 40*-360
+    if AGE_TRANCHE =='45+':
+        X2['DAYS_BIRTH'] = 50*-360
     else:
-        #NAME_EDUCATION_TYPE_High_education = 1
-        X2['NAME_EDUCATION_TYPE_High education']   = 1
+        X2['DAYS_BIRTH'] = 0
 
-    ORGANIZATION_TYPE = st.selectbox(
-        "ORGANIZATION_TYPE", options=['Medicine', 'School', 'Services'])
-    #ORGANIZATION_TYPE_Construction, ORGANIZATION_TYPE_Electricity, ORGANIZATION_TYPE_Government_Industry = 0,0,0
-    ORGANIZATION_TYPE_Medicine, ORGANIZATION_TYPE_School, ORGANIZATION_TYPE_Services, = 0, 0, 0
-    #ORGANIZATION_TYPE_Other_Construction_Agriculture, ORGANIZATION_TYPE_Trade_Business = 0,0
-    if ORGANIZATION_TYPE == 'Construction':
-        ORGANIZATION_TYPE_Construction = 1
-        X2['ORGANIZATION_TYPE_Construction'] = 1
-    elif ORGANIZATION_TYPE == 'Electricity':
-        ORGANIZATION_TYPE_Electricity = 1
-        X2['ORGANIZATION_TYPE_Electricity'] = 1
-    elif ORGANIZATION_TYPE == 'Government/Industry':
-        ORGANIZATION_TYPE_Government_Industry = 1
-        X2['ORGANIZATION_TYPE_Government/Industry'] = 1
-    elif ORGANIZATION_TYPE == 'Medicine':
-        ORGANIZATION_TYPE_Medicine = 1
-        X2['ORGANIZATION_TYPE_Medicine'] = 1
-    elif ORGANIZATION_TYPE == 'Other/Construction/Agriculture':
-        ORGANIZATION_TYPE_Other_Construction_Agriculture = 1
-        X2['ORGANIZATION_TYPE_Other/Construction/Agriculture'] = 1
-    elif ORGANIZATION_TYPE == 'School':
-        ORGANIZATION_TYPE_School = 1
-        X2['ORGANIZATION_TYPE_School'] = 1
-    elif ORGANIZATION_TYPE == 'Services':
-        ORGANIZATION_TYPE_Services = 1
-        X2['ORGANIZATION_TYPE_Services'] = 1
-    elif ORGANIZATION_TYPE == 'Trade/Business':
-        ORGANIZATION_TYPE_Trade_Business = 1
-        X2['ORGANIZATION_TYPE_Trade/Business'] = 1
+    PHONE_CHANGED = st.radio("Nouveau téléphone", options=['Oui', 'Non'])
+    if PHONE_CHANGED == 'Oui':
+        X2['FLAG_PHONE'] = 1
+    else:
+        X2['FLAG_PHONE'] = 0
 
-    OCCUPATION_TYPE = st.selectbox("OCCUPATION_TYPE",
-                                   options=[
-                                       'Accountants_HR_staff_Managers',
-                                       'Private_service_staff',
-                                       'Medicine staff'
-                                   ])
+    # DAYS_LAST_PHONE_CHANGE = st.slider("Date dernier achat téléphone (en année)", 1, 10, 1)
+    # X2['DAYS_LAST_PHONE_CHANGE'] = DAYS_LAST_PHONE_CHANGE
 
-    OCCUPATION_TYPE_Accountants_HR_staff_Managers, OCCUPATION_TYPE_Private_service_staff, OCCUPATION_TYPE_Medicine_staff = 0, 0, 0
-    #OCCUPATION_TYPE_Core_Sales_staff, OCCUPATION_TYPE_Laborers = 0,0,0
-    #OCCUPATION_TYPE_Medicine_staff, OCCUPATION_TYPE_Private_service_staff, OCCUPATION_TYPE_Tech_Staff = 0,0,0
-    if OCCUPATION_TYPE == 'Accountants/HR staff/Managers':
-        OCCUPATION_TYPE_Accountants_HR_staff_Managers = 1
-        X2['OCCUPATION_TYPE_Accountants/HR staff/Managers'] = 1
-    elif OCCUPATION_TYPE == 'Core/Sales staff':
-        OCCUPATION_TYPE_Core_Sales_staff = 1
-        X2['OCCUPATION_TYPE_Core/Sales staff'] = 1
-    elif OCCUPATION_TYPE == 'Laborers':
-        OCCUPATION_TYPE_Laborers = 1
-        X2['OCCUPATION_TYPE_Laborers'] = 1
-    elif OCCUPATION_TYPE == 'Medicine staff':
-        OCCUPATION_TYPE_Medicine_staff = 1
-        X2['OCCUPATION_TYPE_Medicine staff'] = 1
-    elif OCCUPATION_TYPE == 'Private service staff':
-        OCCUPATION_TYPE_Private_service_staff = 1
-        X2['OCCUPATION_TYPE_Private service staff'] = 1
-    elif OCCUPATION_TYPE == 'Tech Staff':
-        OCCUPATION_TYPE_Tech_Staff = 1
-        X2['OCCUPATION_TYPE_Tech Staff'] = 1
 
-    # X = X1[[
-    #         'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
-    #         'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR', 'CNT_CHILDREN',
-    #         'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE', 'FLAG_PHONE'
+    # if withoutAPI:
+    #     result = prediction(X2)
+    # else:
+    #     result = int(json.loads(request_prediction(LRSMOTE_URI, X2).content)["prediction"])
+
+    # X3 = X2[[
+    #         'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH', 'DAYS_ID_PUBLISH',
+    #         'PAYMENT_RATE', 'DAYS_REGISTRATION', 'INCOME_CREDIT_PERC',
+    #         'ANNUITY_INCOME_PERC', 'AMT_ANNUITY', 'DAYS_LAST_PHONE_CHANGE',
+    #         'DAYS_EMPLOYED', 'EXT_SOURCE_1', 'INCOME_PER_PERSON',
+    #         'DAYS_EMPLOYED_PERC', 'AMT_CREDIT', 'REGION_POPULATION_RELATIVE',
+    #         'AMT_INCOME_TOTAL', 'AMT_GOODS_PRICE', 'HOUR_APPR_PROCESS_START',
+    #         'AMT_REQ_CREDIT_BUREAU_YEAR'
     #     ]]
-
-    # result = prediction(X)
-    result = int(json.loads(request_prediction(LRSMOTE_URI, X2).content)["prediction"])
-
     X3 = X2[[
         'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
         'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR',
@@ -410,26 +304,30 @@ def page3():
 
     if withoutAPI:
         transparence = prediction(X3)
+        probability = model.predict_proba(X3)
     else:
-        transparence = int(
-            json.loads(request_prediction(LRSMOTE_URI,
-                                          X3).content)["prediction"])
+        result = json.loads(request_prediction(LRSMOTE_URI,
+                                          X3).content)
+        transparence = int(result["prediction"])
+        probability = tuple(result["probability"])
 
     #st.write('---debug prediction ', transparence)
 
     if transparence == 1:
-        pred = 'Rejected'
+        pred = 'rejeté'
     else:
-        pred = 'Approved'
+        pred = 'approuvé'
 
-    st.success('Your loan is {}'.format(pred))
+    if "approuvé" in pred:
+        st.success(
+            '**Crédit {}** pour le **client {}** qui a une probabilité de **non remboursement de {}%**'
+            .format(pred, id_input, round(probability[0][1] * 100,
+                                          2)))  #, icon="✅")
+    else:
+        st.error('**Crédit {}** pour le **client {}** qui a une probabilité de **non remboursement de {}%**'.format(pred, id_input, round(probability[0][1] * 100, 2)) ) #, icon="🚨")
 
-    predict_probability = model.predict_proba(X3)
-    st.write('Probabilité d"appartenance aux classes : ', predict_probability)
 
-    st.subheader(
-        'Le client {} a une probabilité de non remboursement de {}%'.format(
-            id_input, round(predict_probability[0][1] * 100, 2)))
+    st.write('Probabilité d"appartenance aux classes : ', probability)
 
 
 my_dict = {
@@ -440,7 +338,7 @@ my_dict = {
 
 keys = list(my_dict.keys())
 
-selected_page = st.sidebar.selectbox("Select a page", keys)
+selected_page = st.sidebar.selectbox("Sélectionner une page", keys)
 my_dict[selected_page]()
 
 # if __name__ == '__main__':
