@@ -32,12 +32,12 @@ st.sidebar.image(image)
 
 # Paramètre d'activation de l'usage de l'API en ligne ou non
 LRSMOTE_URI = 'https://ocp7gitapi.herokuapp.com/predict'
-withoutAPI = True
-offline_input = st.sidebar.radio('Connexion API:', ('Oui', 'Non'))
-if offline_input == 'Oui':
-    withoutAPI = False
+with_API = True
+online_input = st.sidebar.radio('Connexion API:', ('Oui', 'Non'))
+if online_input == 'Oui':
+    with_API = False
 else :
-    withoutAPI = True
+    with_API = True
 
 # Chargement du modèle - Possibilité de choisir un modèle au besoin
 current_path = os.getcwd()
@@ -112,7 +112,7 @@ def chargement_data(path):
     return dataframe, liste_id
 
 # Utilisation des données clientes pour présenter l'objet de l'étude d'un prêt
-if withoutAPI:
+if with_API:
     examples_file = 'new_train_cleaned_application.csv'  #'application_API.csv'
 else :
     examples_file = 'new_train_cleaned_application.csv'
@@ -156,7 +156,7 @@ def main_page():
           'CNT_CHILDREN', 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE',
           'FLAG_PHONE']]
 
-        if withoutAPI:
+        if with_API:
             st.write('local model')
             result = prediction(X)
         else:
@@ -198,13 +198,13 @@ def page2():
     st.write(X_infos_client)
 
     # scatter plot
-    st.header("OCCUPATION_TYPE / EXT_SOURCE_3 / target")
-    fig = px.bar(application,
-                 x="DAYS_BIRTH",
-                 y="EXT_SOURCE_3",
-                 color="TARGET",
-                 notched=True)
-    st.plotly_chart(fig)
+    # st.header("OCCUPATION_TYPE / EXT_SOURCE_3 / target")
+    # fig = px.bar(application,
+    #              x="DAYS_BIRTH",
+    #              y="EXT_SOURCE_3",
+    #              color="TARGET",
+    #              notched=True)
+    # st.plotly_chart(fig)
 
 
     X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
@@ -281,7 +281,7 @@ def page3():
     # X2['DAYS_LAST_PHONE_CHANGE'] = DAYS_LAST_PHONE_CHANGE
 
 
-    # if withoutAPI:
+    # if with_API:
     #     result = prediction(X2)
     # else:
     #     result = int(json.loads(request_prediction(LRSMOTE_URI, X2).content)["prediction"])
@@ -302,16 +302,18 @@ def page3():
         'FLAG_PHONE'
     ]]
 
-    if withoutAPI:
+    if with_API:
         transparence = prediction(X3)
         probability = model.predict_proba(X3)
     else:
         result = json.loads(request_prediction(LRSMOTE_URI,
                                           X3).content)
         transparence = int(result["prediction"])
-        probability = tuple(result["probability"])
+        probability = list(
+            eval(result['probability'].strip('[[]]').replace(' ', ',')))
+        probability = pd.DataFrame(probability).T.copy()
 
-    #st.write('---debug prediction ', transparence)
+    st.write('---debug prediction ', transparence)
 
     if transparence == 1:
         pred = 'rejeté'
@@ -321,10 +323,13 @@ def page3():
     if "approuvé" in pred:
         st.success(
             '**Crédit {}** pour le **client {}** qui a une probabilité de **non remboursement de {}%**'
-            .format(pred, id_input, round(probability[0][1] * 100,
+            .format(pred, id_input, round(probability.iloc[0][1] * 100,
                                           2)))  #, icon="✅")
     else:
-        st.error('**Crédit {}** pour le **client {}** qui a une probabilité de **non remboursement de {}%**'.format(pred, id_input, round(probability[0][1] * 100, 2)) ) #, icon="🚨")
+        st.error(
+            '**Crédit {}** pour le **client {}** qui a une probabilité de **non remboursement de {}%**'
+            .format(pred, id_input, round(probability.iloc[0][1] * 100,
+                                          2)))  #, icon="🚨")
 
 
     st.write('Probabilité d"appartenance aux classes : ', probability)
