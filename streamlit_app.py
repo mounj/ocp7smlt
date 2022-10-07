@@ -1,7 +1,6 @@
 # Chargement des librairies nécessaires
 from cProfile import label
 from operator import contains
-from tkinter.tix import COLUMN
 import streamlit as st
 from streamlit_shap import st_shap
 import shap
