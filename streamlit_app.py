@@ -179,6 +179,18 @@ def main_page():
         else:
             st.error('votre crédit est {}'.format(pred)) #, icon="🚨")
 
+def result_prediction(target, predicted):
+    if predicted == 1:
+        if int(target) == 1:
+            pred = 'True Positive'
+        else:
+            pred = 'False Positive'
+    else:
+        if int(target) == 1:
+            pred = 'False Negative)'
+        else:
+            pred = 'True Negative)'
+    return pred
 
 def page2():
     st.title("Interprétabilité du modèle")
@@ -197,15 +209,33 @@ def page2():
     X_infos_client = application[application['SK_ID_CURR'] == id_input]
     st.write(X_infos_client)
 
-    scatter plot
-    st.header("FLAG_PHONE / EXT_SOURCE_3 / target")
-    fig = px.bar(application,
-                 x="FLAG_PHONE",
-                 y="EXT_SOURCE_3",
-                 color="TARGET",
-                 notched=True)
-    st.plotly_chart(fig)
+    # st.header("FLAG_PHONE / EXT_SOURCE_3 / target")
+    # fig = px.bar(application,
+    #              x="FLAG_PHONE",
+    #              y="EXT_SOURCE_3",
+    #              color="TARGET",)
+    # #  notched=True)
+    # st.plotly_chart(fig)
+    # dataframe['PREDICTED'] = prediction(dataframe['TARGET'])
+    # # comparatif = application.map(lambda x : [])
+    # dataframe['CLASSIFICATION'] = dataframe.applymap(result_prediction('TARGET','PREDICTED'))
 
+
+    # st.write(application.head(5))
+    # # pie_chart = px.pie()
+    # pie_chart = px.pie(data_frame=dataframe,
+    #                    values=['CLASSIFICATION'],
+    #                    names='CLASSIFICATION',
+    #                    title='Taux de prêts accoordés et honorés')
+    # X_infos_client, values="TARGET", names="Issue Reported")
+    # col1.plotly_chart(pie_chart,use_container_width = True)
+
+
+
+    # bar_chart = px.histogram(application, x="FLAG_PHONE", color="TARGET")
+    # col2.plotly_chart(bar_chart,use_container_width = True)
+
+    # st.plotly_chart(pie_chart)
 
     X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
 
