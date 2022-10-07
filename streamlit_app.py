@@ -197,14 +197,14 @@ def page2():
     X_infos_client = application[application['SK_ID_CURR'] == id_input]
     st.write(X_infos_client)
 
-    # scatter plot
-    # st.header("OCCUPATION_TYPE / EXT_SOURCE_3 / target")
-    # fig = px.bar(application,
-    #              x="DAYS_BIRTH",
-    #              y="EXT_SOURCE_3",
-    #              color="TARGET",
-    #              notched=True)
-    # st.plotly_chart(fig)
+    scatter plot
+    st.header("FLAG_PHONE / EXT_SOURCE_3 / target")
+    fig = px.bar(application,
+                 x="FLAG_PHONE",
+                 y="EXT_SOURCE_3",
+                 color="TARGET",
+                 notched=True)
+    st.plotly_chart(fig)
 
 
     X1 = dataframe[dataframe['SK_ID_CURR'] == id_input]
@@ -312,8 +312,6 @@ def page3():
         probability = list(
             eval(result['probability'].strip('[[]]').replace(' ', ',')))
         probability = pd.DataFrame(probability).T.copy()
-
-    # st.write('---debug prediction ', type(probability))
 
     if transparence == 1:
         pred = 'rejeté'
