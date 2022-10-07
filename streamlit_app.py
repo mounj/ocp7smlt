@@ -304,7 +304,7 @@ def page3():
 
     if with_API:
         transparence = prediction(X3)
-        probability = model.predict_proba(X3)
+        probability = pd.DataFrame(model.predict_proba(X3))
     else:
         result = json.loads(request_prediction(LRSMOTE_URI,
                                           X3).content)
@@ -313,7 +313,7 @@ def page3():
             eval(result['probability'].strip('[[]]').replace(' ', ',')))
         probability = pd.DataFrame(probability).T.copy()
 
-    st.write('---debug prediction ', transparence)
+    # st.write('---debug prediction ', type(probability))
 
     if transparence == 1:
         pred = 'rejeté'
