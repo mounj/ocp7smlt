@@ -1,6 +1,7 @@
 # Chargement des librairies nécessaires
 from cProfile import label
 from operator import contains
+from unittest import result
 import streamlit as st
 from streamlit_shap import st_shap
 import shap
@@ -72,9 +73,10 @@ def request_prediction(model_uri, data):
 
 
 def feature_importance(df):
-    feature_names = df.drop(columns='TARGET').columns
+    feature_names = df.drop(columns=['TARGET','PREDICTED', 'result']).columns
     forest = RandomForestClassifier(random_state=0)
-    forest.fit(df.drop(columns='TARGET'), df['TARGET'])
+    forest.fit(df.drop(columns=['TARGET', 'PREDICTED', 'result']),
+               df['TARGET'])
 
     forest_importances = pd.Series(
         forest.feature_importances_,
@@ -178,19 +180,6 @@ def main_page():
         else:
             st.error('votre crédit est {}'.format(pred)) #, icon="🚨")
 
-def result_prediction(target, predicted):
-    if predicted == 1:
-        if int(target) == 1:
-            pred = 'True Positive'
-        else:
-            pred = 'False Positive'
-    else:
-        if int(target) == 1:
-            pred = 'False Negative)'
-        else:
-            pred = 'True Negative)'
-    return pred
-
 def page2():
     st.title("Interprétabilité du modèle")
 
@@ -202,7 +191,8 @@ def page2():
 
     # informations du client
     st.header("Informations du client")
-    examples_file = 'new_train_cleaned_application.csv'  #'application.csv'
+    examples_file = 'application.csv'
+    # examples_file = 'new_train_cleaned_application.csv'  #'application.csv'
     application, liste_id = chargement_data(examples_file)
     # application.drop(['Unnamed: 0'], axis=1, inplace=True)
     X_infos_client = application[application['SK_ID_CURR'] == id_input]
@@ -215,12 +205,136 @@ def page2():
     #              color="TARGET",)
     # #  notched=True)
     # st.plotly_chart(fig)
-    # dataframe['PREDICTED'] = prediction(dataframe['TARGET'])
+    dataframe['PREDICTED'] = pd.DataFrame(
+        prediction(dataframe[[
+            'EXT_SOURCE_3', 'OBS_60_CNT_SOCIAL_CIRCLE', 'EXT_SOURCE_2',
+            'OBS_30_CNT_SOCIAL_CIRCLE', 'AMT_REQ_CREDIT_BUREAU_YEAR',
+            'CNT_CHILDREN', 'CNT_FAM_MEMBERS', 'EXT_SOURCE_1', 'PAYMENT_RATE',
+            'FLAG_PHONE'
+        ]]))
+
+    dataframe['result'] = (dataframe['TARGET'] * 2 - dataframe['PREDICTED'])
+
+    cat_map = {-1: "FP", 0: "TN", 1: "TP", 2: "FN"}
+    dataframe['result'] = dataframe['result'].map(cat_map)
     # # comparatif = application.map(lambda x : [])
     # dataframe['CLASSIFICATION'] = dataframe.applymap(result_prediction('TARGET','PREDICTED'))
 
+    # st.write(dataframe[dataframe['SK_ID_CURR'] == id_input][[
+    #     'SK_ID_CURR',
+    #     'TARGET',
+    #     'PREDICTED',
+    #     'result',
+    #     'EXT_SOURCE_3',
+    #     'EXT_SOURCE_2',
+    #     'EXT_SOURCE_1',
+    #     'FLAG_PHONE',
+    #     'OBS_60_CNT_SOCIAL_CIRCLE',
+    #     'OBS_30_CNT_SOCIAL_CIRCLE',
+    #     'AMT_REQ_CREDIT_BUREAU_YEAR',
+    #     'CNT_CHILDREN',
+    #     'CNT_FAM_MEMBERS',
+    #     'PAYMENT_RATE'
+    # ]])
 
-    # st.write(application.head(5))
+    # st.write(dataframe.describe())
+    # fig = px.bar(dataframe,
+    #              x="result",
+    #              y="result",)
+    # st.plotly_chart(fig)
+
+    # fig = px.box(dataframe,
+    #              x="result",
+    #              y="EXT_SOURCE_2",
+    #              color="TARGET",
+    #              notched=True)
+    # st.plotly_chart(fig)
+
+    # fig = px.box(dataframe,
+    #              x="result",
+    #              y="FLAG_PHONE",
+    #              color="TARGET",
+    #              notched=True)
+    # st.plotly_chart(fig)
+
+    # st.header("OCCUPATION_TYPE / EXT_SOURCE_3 / target")
+    # fig = px.box(application, x="OCCUPATION_TYPE", y="EXT_SOURCE_3", color="TARGET", notched=True)
+    # st.plotly_chart(fig)
+
+    # st.header("OCCUPATION_TYPE / EXT_SOURCE_2 / target")
+    # fig = px.box(application, x="OCCUPATION_TYPE", y="EXT_SOURCE_2", color="TARGET", notched=True)
+    # st.plotly_chart(fig)
+
+    # st.header("Répartition Homme/Femme")
+    # fig = px.scatter(application, x="CODE_GENDER", y="AGE", color="TARGET")
+    # st.plotly_chart(fig)
+
+    # repart_HF = application.groupby(
+    #     by=['CODE_GENDER', 'TARGET'])['SK_ID_CURR'].count()
+    # st.header("Répartition Homme/Femme")
+    # fig = px.bar(repart_HF, x="AGE", y="TARGET", color="CODE_GENDER")
+    # st.plotly_chart(fig)
+
+    ### graph 3 ###
+    #Fonction pour les graphes
+    # def count_graph(df, x, color):
+    group = pd.DataFrame(
+        application.groupby(['CODE_GENDER', 'TARGET'])['SK_ID_CURR'].count()).reset_index()
+    group.rename(columns={'SK_ID_CURR': 'count'}, inplace=True)
+    succes = group[group['TARGET'] == 0]
+    succes['Pourcentage'] = succes['count'] / succes['count'].sum() * 100
+    Non_succes = group[group['TARGET'] == 1]
+    Non_succes['Pourcentage'] = Non_succes['count'] / Non_succes['count'].sum(
+    ) * 100
+    for_fig = pd.concat([succes, Non_succes])
+
+    fig = px.bar(for_fig, x='TARGET', y='Pourcentage', color='CODE_GENDER')
+    fig.update_xaxes(type='category', title_text="Succès de remboursement")
+
+    # return for_fig, fig
+    # for_fig, fig = count_graph(application, 'success', 'CODE_GENDER')
+    st.write(fig)
+
+    ### graph 2 ###
+    group = pd.DataFrame(
+        application.groupby(['NAME_FAMILY_STATUS',
+                             'TARGET'])['SK_ID_CURR'].count()).reset_index()
+    group.rename(columns={'SK_ID_CURR': 'count'}, inplace=True)
+    succes = group[group['TARGET'] == 0]
+    succes['Pourcentage'] = succes['count'] / succes['count'].sum() * 100
+    Non_succes = group[group['TARGET'] == 1]
+    Non_succes['Pourcentage'] = Non_succes['count'] / Non_succes['count'].sum(
+    ) * 100
+    for_fig = pd.concat([succes, Non_succes])
+
+    fig = px.bar(for_fig,
+                 x='TARGET',
+                 y='Pourcentage',
+                 color='NAME_FAMILY_STATUS')
+    fig.update_xaxes(type='category', title_text="Succès de remboursement")
+    st.write(fig)
+    ### graph 3 ###
+    group = pd.DataFrame(
+        application.groupby(['OCCUPATION_TYPE',
+                             'TARGET'])['SK_ID_CURR'].count()).reset_index()
+    group.rename(columns={'SK_ID_CURR': 'count'}, inplace=True)
+    succes = group[group['TARGET'] == 0]
+    succes['Pourcentage'] = succes['count'] / succes['count'].sum() * 100
+    Non_succes = group[group['TARGET'] == 1]
+    Non_succes['Pourcentage'] = Non_succes['count'] / Non_succes['count'].sum(
+    ) * 100
+    for_fig = pd.concat([succes, Non_succes])
+
+    fig = px.bar(for_fig, x='TARGET', y='Pourcentage', color='OCCUPATION_TYPE')
+    fig.update_xaxes(type='category', title_text="Succès de remboursement")
+
+    # return for_fig, fig
+    # for_fig, fig = count_graph(application, 'success', 'CODE_GENDER')
+    st.write(fig)
+
+
+    # px.pie(dataframe, names='result', values='TARGET', title='repartition')
+    # st.write(dataframe.head(5)[['SK_ID_CURR', 'TARGET', 'PREDICTED', 'result']])
     # # pie_chart = px.pie()
     # pie_chart = px.pie(data_frame=dataframe,
     #                    values=['CLASSIFICATION'],
